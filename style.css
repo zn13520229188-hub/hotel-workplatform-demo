@@ -217,9 +217,75 @@ table.tb td{padding:8px 10px;border-bottom:1px solid var(--line)}
 .pillar .p{background:#fff;border:1px solid var(--line);border-radius:10px;padding:9px 13px;font-size:12px}
 .pillar .p b{color:var(--blue)}
 
-/* 手机端简单适配 */
+/* ========== 手机端适配（≤900px）========== */
 @media (max-width:900px){
-  .g2,.g3,.g4,.pipe-board,.kanban{grid-template-columns:1fr}
+  /* 门户：收紧留白 */
+  #portal{padding:28px 16px}
+  .portal-head h1{font-size:21px}
+  .portal-sub{font-size:13.5px}
+  .portal-links{gap:8px}
+  .plink{padding:9px 14px;font-size:12.5px}
+
+  /* 布局：侧边栏变成顶部横向滑动导航，保证手机上能切换模块 */
+  .layout{flex-direction:column}
+  .sidebar{display:flex;flex-direction:row;width:100%;overflow-x:auto;gap:4px;
+    padding:8px 10px;border-right:none;border-bottom:1px solid var(--line);
+    position:sticky;top:54px;z-index:40;-webkit-overflow-scrolling:touch}
+  .sidebar::-webkit-scrollbar{display:none}
+  .side-item{width:auto;white-space:nowrap;flex-shrink:0;margin-bottom:0;padding:7px 12px}
+  .side-note{display:none}
+
+  /* 顶栏：隐藏长店名，其余内容压缩到一行不折行 */
+  .topbar{padding:0 12px;gap:8px}
+  .topbar .hname{display:none}
+  .topbar .tname{white-space:nowrap;font-size:14px}
+  .rolebadge{max-width:130px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .btn-ghost{white-space:nowrap;flex-shrink:0;padding:6px 10px}
+
+  /* 主内容区 */
+  .main{padding:14px 12px;max-width:100%}
+
+  /* 网格：KPI 保持两列一屏可见，其余单列 */
+  .g2,.g3,.kanban{grid-template-columns:1fr}
+  .g4,.pipe-board{grid-template-columns:1fr 1fr}
+  .pipe-col{min-height:auto}
+
+  /* 表格在卡片内横向滚动，不撑破屏幕 */
+  table.tb{display:block;overflow-x:auto;-webkit-overflow-scrolling:touch}
+
+  /* 列表行允许换行（部分行内有固定宽度的进度条和数值列） */
+  .list-row{flex-wrap:wrap}
+
+  /* 企微手机模拟器：随屏幕缩放并居中 */
   .kefu-wrap{grid-template-columns:1fr}
-  .sidebar{display:none}
+  .phone{width:100%;max-width:360px;margin:0 auto}
+
+  /* 弹窗铺满可视区 */
+  #modal-bg{padding:10px}
+  #modal{padding:16px;max-height:92vh}
+
+  /* 提示条横向铺满 */
+  #toasts{left:12px;right:12px;top:60px}
+  .toast{max-width:none}
+
+  /* 表单：标签独占一行；输入字号 16px 防 iOS 聚焦自动放大 */
+  .form-row label{width:100%}
+  .form-row input,.form-row select,.form-row textarea{font-size:16px}
+
+  /* 流程图改竖排 */
+  .flow{flex-direction:column;gap:0}
+  .flow .node{min-width:200px}
+  .flow .link{width:2px;height:24px}
+  .flow .link::after{display:none}
+
+  /* 飞书卡片键值对单列 */
+  .fs-kv{grid-template-columns:1fr}
+}
+
+/* 小屏手机再收一档 */
+@media (max-width:480px){
+  .pipe-board{grid-template-columns:1fr}
+  .kpi .val{font-size:22px}
+  .kpi{padding:12px 14px}
+  .view-title{font-size:17px}
 }
