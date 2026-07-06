@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hotel AI Brain · 酒店 AI 经营大脑工作平台（Demo）</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ========== 统一门户 ========== -->
+<div id="portal">
+  <div class="portal-wrap">
+    <div class="portal-head">
+      <div class="logo-dot">HB</div>
+      <h1>Hotel AI Brain · 工作平台</h1>
+    </div>
+    <div class="portal-sub">一个门户 · 一次登录 · 角色决定入口 —— 不同权限的人，看到不同的采集入口和不同的驾驶舱</div>
+    <div class="portal-bench">对标全球模式：万豪 MGS ｜ 希尔顿 The Lobby ｜ 洲际 Merlin ｜ 华住华通 —— 缩到 30–150 间纯客房酒店刚好合身 ｜ 演示门店：安然酒店·城东店（108 间，虚构）</div>
+
+    <div class="portal-sec-title">— 选择身份进入（模拟企业微信扫码登录）—</div>
+    <div class="role-grid" id="role-grid"></div>
+
+    <div class="portal-links">
+      <button class="plink" onclick="enterRole('boss');show('arch')">🏗️ 先看平台总架构（入口 → 加工 → 驾驶舱）</button>
+      <button class="plink" onclick="enterRole('boss');show('pain')">🎯 为什么做：中小酒店 7 大痛点对照</button>
+      <button class="plink" onclick="enterRole('boss');show('rms')" style="border-color:rgba(107,79,216,.7);color:#cbb8ff">💹 关联产品：酒店 AI 收益管理系统（可单卖/打包）</button>
+      <button class="plink" onclick="demoGuide()">🎬 5 分钟演示路线建议</button>
+    </div>
+  </div>
+</div>
+
+<!-- ========== 工作台 ========== -->
+<div id="app">
+  <div class="topbar">
+    <div class="logo-dot">HB</div>
+    <span class="tname">Hotel AI Brain</span>
+    <span class="hname">安然酒店 · 城东店（108 间 · 演示数据）</span>
+    <span class="sp"></span>
+    <span class="rolebadge" id="top-role"></span>
+    <button class="btn-ghost" onclick="backPortal()">⇄ 切换角色</button>
+  </div>
+  <div class="layout">
+    <div class="sidebar" id="sidebar"></div>
+    <div class="main" id="main"></div>
+  </div>
+</div>
+
+<div id="toasts"></div>
+<div id="modal-bg" onclick="if(event.target===this)closeModal()"><div id="modal"></div></div>
+<div class="demo-badge">DEMO · 全部为虚构演示数据</div>
+
+<script src="data.js"></script>
+<script src="app.js"></script>
+<script>
+function demoGuide(){
+  openModal('<h3>🎬 演示路线建议</h3>' +
+  '<div class="hint" style="margin-top:0"><b>给酒店老板演示（5 分钟）：</b><br>' +
+  '① 门户选「老板」→ 驾驶舱看 4 个数 + 异常预警 + 待拍板（批准一条调价）<br>' +
+  '② 切「客人视角」→ 播放场景③要折扣（红线转人工）和场景⑤加好友（客史入库）<br>' +
+  '③ 切「店长」→ 收益雷达看周六演唱会调价建议 → 提交老板拍板，闭环</div>' +
+  '<div class="hint"><b>给学员/同行讲架构（15 分钟）：</b><br>' +
+  '① 平台总架构页：七个阶段逐个点开讲<br>' +
+  '② 采集中心：录一段晨会（录音动画）→ 看 AI 提炼分发<br>' +
+  '③ 知识加工流水线：按 ①②③ 按钮把一条 raw 推成 active<br>' +
+  '④ OTA 运营中心六个 tab（对照携程 eBooking 讲自动采集）<br>' +
+  '⑤ 飞书联通：日报卡片 + 多维表格 + 调价审批<br>' +
+  '⑥ 收尾看「痛点对照」：为什么单体酒店需要这个平台</div>');
+}
+</script>
+</body>
+</html>
