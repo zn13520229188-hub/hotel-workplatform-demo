@@ -998,6 +998,214 @@ RENDER.pain = function(){
     '</table><div class="hint">打法：不做大而全 PMS，只吃「集团有、单体没有」的 AI 经营能力差——精准切 30–150 间纯客房酒店。</div></div>';
 };
 
+/* ================= AI 问答（数字店长） ================= */
+RENDER.ask = function(){
+  return head('AI 问答 · 数字店长', '规则：数字类问题走数据库视图，文字类走知识库；<b>每个答案带出处，库里没有的直说没有</b> ｜ 演示数据') +
+    '<div class="kefu-wrap" style="grid-template-columns:340px 1fr">' +
+      '<div>' + QA.map((x, i) =>
+        '<button class="scen-btn" onclick="askDemo(' + i + ')"><b>Q' + (i + 1) + '. ' + x.q + '</b><span>点击查看 AI 回答</span></button>').join('') + '</div>' +
+      '<div class="card" id="qa-box"><h4>💬 回答区</h4>' +
+        '<div class="hint" style="margin-top:0">点左侧问题查看回答。真实使用时，在企微里直接问即可——回答格式与此一致，每个数字都能溯源。</div></div>' +
+    '</div>';
+};
+function askDemo(i){
+  const x = QA[i];
+  $('#qa-box').innerHTML = '<h4>💬 ' + x.q + '</h4>' +
+    '<div style="font-size:13.5px;line-height:1.8">' + x.a + '</div>' +
+    '<span class="src">📄 出处：' + x.src + '</span>' +
+    '<div class="hint"><b>防胡编：</b>此答案的每个数字都能在数据库/知识库中溯源；若库中无数据，AI 必须回答"尚未录入"，不允许编造。</div>';
+}
+
+/* ================= AI 查询台（演示连续对话） ================= */
+RENDER.query = function(){
+  const st = QUERY_DEMO.find(x => x.id === curRole.id) || QUERY_DEMO[0];
+  return head('AI 查询台 · ' + (curRole.name || ''), '连续对话 + 并行查询：每个话题里可无限追问（做成表、写成文案都行）｜ 回答带出处、没有的不编 ｜ <b>演示版为静态示例</b>：真实使用时是并发长对话') +
+    st.threads.map((th, ti) =>
+      '<div class="card" style="margin-top:12px"><h4>' + st.icon + ' 话题 ' + (ti + 1) + '：' + th.q + '</h4>' +
+        '<div class="qa-a">' + th.a + '</div>' +
+        '<div class="qa-src">📄 出处：SQLite 预建视图 + 知识库 active 条目</div>' +
+        (th.more
+          ? '<div style="margin-top:10px"><button class="btn sm lite" id="qmore-btn-' + ti + '" onclick="qMore(' + ti + ')">💬 追问：' + th.more + '</button></div>' +
+            '<div id="qmore-' + ti + '"></div>'
+          : '') +
+      '</div>').join('') +
+    '<div class="card" style="margin-top:12px"><h4>💡 能力说明</h4>' +
+      '<div class="list-row">📊 问数字：直接查库（daily_kpi / channel_contributions 等预建视图）</div>' +
+      '<div class="list-row">✍️ 要产出：写文案、生成表格、排版成稿，存在知识库可追溯</div>' +
+      '<div class="list-row">🔄 无限追问：一条在查时，下面还能同时问下一条（最多同时 3 条）</div>' +
+      '<div class="list-row">🔒 权限与红线：只答你权限内的内容；改价/对外发布一律"AI 起草、人拍板"</div></div>';
+};
+function qMore(ti){
+  const st = QUERY_DEMO.find(x => x.id === curRole.id) || QUERY_DEMO[0];
+  const th = st.threads[ti];
+  if(!th || !th.a2) return;
+  $('#qmore-' + ti).innerHTML = '<div class="qa-a qa-more">' + th.a2 + '</div>' +
+    '<div class="qa-src">📄 出处：预建视图 + 知识库 active 条目</div>';
+  const b = $('#qmore-btn-' + ti);
+  if(b){ b.disabled = true; b.style.opacity = .55; }
+}
+
+/* ================= 报告与 PPT（演示生成） ================= */
+let REP_M = 0;
+RENDER.report = function(){
+  return head('报告与 PPT', '真数据一键出报告：AI 现场查库撰写，数字带出处 ｜ 月报存入知识库可追溯，PPT 为自包含网页幻灯（投屏/手机都能放）｜ 演示版为静态示例') +
+    '<div class="card"><h4>选择周期，一键生成（可连点并行）</h4>' +
+      '<div style="margin:8px 0">' + REP_DEMO.months.map((lab, i) =>
+        '<button class="tab' + (i === REP_M ? ' on' : '') + '" onclick="REP_M=' + i + ';show(\'report\')">' + lab + '</button>').join('') + '</div>' +
+      '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:6px">' +
+        '<button class="btn pri" onclick="repGen(\'monthly\')">📊 生成经营月报</button>' +
+        '<button class="btn pri" onclick="repGen(\'ppt\')">📽️ 生成汇报 PPT（8 页 · 可放映）</button>' +
+        '<button class="btn lite" onclick="toast(\'日报需要每日数据采集跑起来后开放（采集中心·去纸化阶段2）\')" style="opacity:.55">📋 工作日报（待日采集开通）</button>' +
+      '</div>' +
+      '<div id="rep-status" style="margin-top:12px"></div>' +
+    '</div>' +
+    '<div class="card" style="margin-top:14px"><h4>🗂️ 已生成（演示）</h4>' +
+      '<div class="list-row"><span class="tag green">月报</span>安然酒店 · 近 30 天经营月报<span class="sp"></span><button class="btn sm lite" onclick="repOpen(\'monthly\')">查看全文</button></div>' +
+      '<div class="list-row"><span class="tag blue">PPT</span>安然酒店 · 月度经营汇报（8 页）<span class="sp"></span><button class="btn sm lite" onclick="repOpen(\'ppt\')">▶ 放映预览</button></div>' +
+      '<div class="hint">演示版为静态示例；真实使用时点按钮即调用本机 AI 查库撰写，秒级出 .pptx 可下载文件。</div></div>';
+};
+function repGen(kind){
+  const st = $('#rep-status');
+  const lab = kind === 'ppt' ? '汇报 PPT' : '经营月报';
+  st.innerHTML = '<div class="hint">⏳ AI 正在查库撰写' + REP_DEMO.months[REP_M] + '·' + lab + '（读口径 → 查数据 → 核对来源 → 成稿）…</div>';
+  setTimeout(() => {
+    st.innerHTML = '<div class="decide"><div class="t">✅ 已生成：' + REP_DEMO.months[REP_M] + ' ' + lab + '（演示）</div>' +
+      '<div class="d">' + (kind === 'ppt' ? REP_DEMO.ppt.pages.length + ' 页完整内容，每页数字带出处，可放映/下载' : REP_DEMO.monthly.body.split('\n')[0].replace('## ','')) + '</div>' +
+      '<button class="btn sm ok" onclick="repOpen(\'' + kind + '\')">查看成品</button> ' +
+      '<button class="btn sm lite" onclick="toast(\'已复制到剪贴板（演示）\')">📋 复制全文</button></div>';
+    toast('✅ ' + lab + ' 已生成（演示）', 'ok');
+  }, 1200);
+}
+function repOpen(kind){
+  const d = REP_DEMO[kind];
+  openModal('<h3>📄 ' + d.t + '</h3>' +
+    (kind === 'monthly'
+      ? '<div style="font-size:13px;line-height:1.9;white-space:pre-wrap;background:var(--bg,#f7f8fc);border-radius:10px;padding:14px;max-height:52vh;overflow-y:auto">' + d.body + '</div>'
+      : '<div style="max-height:52vh;overflow-y:auto">' + d.pages.map((p, i) =>
+          '<div class="list-row"><span class="tag blue">P' + (i + 1) + '</span>' + p + '</div>').join('') + '</div>') +
+    '<div class="hint" style="margin-top:10px">演示版为静态示例；真实使用时为自包含 HTML 幻灯片（左右键/点击翻页、核心数字进场动效），并生成 .pptx 可下载文件。</div>');
+}
+
+/* ================= 预警与拍板 ================= */
+RENDER.alerts = function(){
+  return head('预警与拍板', '预警全部出自数据与采集（只报例外，不报流水账）；拍板事项由 AI 起草，老板确认后才执行（人在回路）｜ 演示数据') +
+    '<div class="grid g2">' +
+      '<div class="card"><h4>🚨 全部预警（' + ALERTS.length + '）<span class="more">触线自动推企微</span></h4>' +
+        ALERTS.map((a, i) => '<div class="alert-row"><div class="alert-ic" style="background:' + a.bg + '">' + a.ic + '</div>' +
+          '<div style="flex:1">' + a.t + '</div><button class="btn sm lite" onclick="alertGo(' + i + ')">' + a.act + '</button></div>').join('') +
+        '<div class="hint"><b>只报例外：</b>正常指标不打扰，触线才预警；每条预警都能下钻到数据出处。</div></div>' +
+      '<div class="card"><h4>🖊️ 待你拍板（' + DECISIONS.length + '）<span class="more">六类高影响动作永远人拍板</span></h4>' +
+        DECISIONS.map((d, i) => '<div class="decide" id="dec-' + i + '"><div class="t"><span class="tag blue">' + d.tag + '</span> ' + d.t + '</div>' +
+          '<div class="d">' + d.d + '</div>' +
+          '<button class="btn sm ok" onclick="approve(' + i + ')">批准</button> ' +
+          '<button class="btn sm" style="border:1px solid var(--line)" onclick="toast(\'已驳回并记录理由（演示）\')">驳回</button></div>').join('') +
+        '<div class="hint"><b>规则：</b>调价、对外发布、赔付、涉员工——AI 一律只出方案不执行，您点"批准"后才落地并留痕（audit_log）。</div></div>' +
+    '</div>';
+};
+function alertGo(i){
+  toast('已跳转到对应处理页（演示）：' + ALERTS[i].t.slice(0, 18) + '…');
+}
+
+/* ================= 知识库中心 ================= */
+RENDER.kb = function(){
+  return head('知识库中心 · 酒店数字资产', '状态机：raw 原文 → candidate 提炼稿 → review 待确认 → active 已转正（绝不原地覆盖）｜ 演示数据') +
+    '<div class="statebar">' +
+      '<span class="st">raw 原文 ' + KB.counts.raw + '</span><span class="arrow">→</span>' +
+      '<span class="st hot">candidate 提炼稿 ' + KB.counts.cand + '</span><span class="arrow">→</span>' +
+      '<span class="st">review 待确认 ' + KB.counts.rev + '</span><span class="arrow">→</span>' +
+      '<span class="st">active 已转正 ' + KB.counts.act + '</span>' +
+    '</div>' +
+    '<div class="pipe-board">' +
+      '<div class="pipe-col"><h5>📥 原文（raw）<span>' + KB.counts.raw + '</span></h5>' +
+        KB.raws.map(x => '<div class="pcard raw">' + x + '</div>').join('') + '</div>' +
+      '<div class="pipe-col"><h5>🟡 提炼稿（candidate）<span>' + KB.counts.cand + '</span></h5>' +
+        KB.cands.map((x, i) => '<div class="pcard cand">' + x + '<div class="meta">AI 提炼 · 带 source_ref · <button class="btn sm ok" style="margin-top:4px" onclick="kbPass(' + i + ')">升 active</button></div></div>').join('') + '</div>' +
+      '<div class="pipe-col"><h5>🟣 待人工确认（review）<span>' + KB.counts.rev + '</span></h5>' +
+        KB.revs.map((x, i) => '<div class="pcard rev">' + x + '<div class="meta">需要老板/店长点头 · <button class="btn sm lite" style="margin-top:4px" onclick="toast(\'已退回补充来源（演示）\')">退回</button></div></div>').join('') + '</div>' +
+      '<div class="pipe-col"><h5>🟢 已转正（active）<span>' + KB.counts.act + '</span></h5>' +
+        KB.acts.map(x => '<div class="pcard act">' + x + '</div>').join('') + '</div>' +
+    '</div>' +
+    '<div class="card" style="margin-top:14px"><h4>📚 库结构（10 目录）</h4>' +
+      '<div class="pillar">' + KB.dirs.map(x => '<div class="p">' + x + '</div>').join('') + '</div>' +
+      '<div class="hint"><b>为什么重要：</b>员工离职带不走、新人 3 天上手、对客回答口径统一；AI 只在 active 里取数，防胡编的最后一道闸。知识升级 5 条待拍板在老板端「预警与拍板」里。</div></div>';
+};
+function kbPass(i){
+  const item = KB.cands[i];
+  KB.acts.push(item);
+  KB.cands.splice(i, 1);
+  KB.counts.cand--; KB.counts.act++;
+  toast('✅ 已升 active：' + item.slice(0, 16) + '…（下次导出进对客知识包）', 'ok');
+  show('kb');
+}
+
+/* ================= 内容中心 ================= */
+RENDER.content = function(){
+  return head('内容中心 · 全平台推文流水线', '素材进 → AI 生成 → 草稿箱 → <b>人工审核</b> → 复制到各平台发布 ｜ 未经审核的内容一个字不对外发 ｜ 演示数据') +
+    '<div class="grid g2">' +
+      '<div class="card"><h4>📦 素材来源（' + CONTENT.sources.length + '）</h4>' +
+        CONTENT.sources.map(s => '<div class="list-row"><span class="tag ' + s.st + '">' + s.stt + '</span><b>' + s.name + '</b>' +
+          '<span style="font-size:11.5px;color:#98a5bd;margin-left:8px">' + s.d + '</span></div>').join('') + '</div>' +
+      '<div class="card"><h4>🗓️ 每日节奏</h4>' +
+        CONTENT.schedule.map(s => '<div class="list-row"><span class="tag blue">' + s[0] + '</span>' + s[1] + '</div>').join('') +
+        '<div style="margin-top:10px"><button class="btn pri" onclick="contentGen()">✨ 一键生成今日全平台草稿</button>' +
+        '<div id="content-status" style="margin-top:8px"></div></div></div>' +
+    '</div>' +
+    '<div class="card" style="margin-top:14px"><h4>📋 草稿箱（' + CONTENT.drafts.length + ' 篇 · 人审后发布）</h4>' +
+      CONTENT.drafts.map((d, i) =>
+        '<div class="list-row" id="draft-' + i + '"><span class="tag ' + (d.st === '已通过' ? 'green' : 'amber') + '">' + d.st + '</span>' +
+        '<b style="font-size:12.5px">' + d.t + '</b><span class="sp"></span>' +
+        (d.st === '已通过'
+          ? '<button class="btn sm lite" onclick="toast(\'已复制到剪贴板——去对应平台粘贴发布（演示）\')">📋 复制发布</button>'
+          : '<button class="btn sm ok" onclick="contentApprove(' + i + ')">审核通过</button> <button class="btn sm lite" onclick="toast(\'已退回补充素材（演示）\')">退回</button>') +
+        '</div>').join('') +
+      '<div class="hint">平台发布矩阵：公众号（人工点发布）｜ 小红书 / 抖音 / OTA 旅拍（人工粘贴）｜ 朋友圈（企微客户朋友圈，阶段 2）。</div></div>';
+};
+function contentGen(){
+  const st = $('#content-status');
+  st.innerHTML = '<div class="hint">⏳ AI 读素材库 → 生成全平台草稿（公众号 / 小红书 / 抖音 / OTA / 朋友圈）…</div>';
+  setTimeout(() => {
+    CONTENT.drafts.unshift({ t:'【今日新稿】演唱会夜 · 散场步行 10 分钟到店（全平台 5 版）', st:'待审核', plat:'全平台' });
+    st.innerHTML = '<div class="hint" style="color:var(--green,#18a058)">✅ 今日草稿已入箱（演示）——请逐篇审核后再发布。</div>';
+    show('content');
+  }, 1300);
+}
+function contentApprove(i){
+  CONTENT.drafts[i].st = '已通过';
+  toast('✅ 已审核通过——可复制去对应平台发布（保持人在回路）', 'ok');
+  show('content');
+}
+
+/* ================= 行业资讯 ================= */
+RENDER.news = function(){
+  return head('行业资讯 · 每日晨读', '四类来源（酒店行业 / OTA 平台 / 行业趋势 / AI 应用）· 每日 06:30 自动抓取入库 ｜ 演示数据') +
+    '<div class="grid g2">' +
+      '<div class="card"><h4>🏨 酒店行业资讯 <span class="more">按本店相关度排序</span></h4>' +
+        NEWS.ind.map((n, i) => '<div class="list-row"><span class="tag blue">' + n.tag + '</span>' + n.t + '</div>').join('') +
+        '<div class="hint">真实使用时从迈点 / 环球旅讯 / 劲旅网 / 品橙直采，按「商圈 &gt; 本城 &gt; 行业」相关度排序。</div></div>' +
+      '<div class="card"><h4>📍 本地商圈动态 <span class="more">直接影响本店定价</span></h4>' +
+        NEWS.local.map((n, i) => '<div class="list-row"><span class="tag amber">' + n.tag + '</span>' + n.t + '</div>').join('') +
+        '<div class="hint">演出/会展/赛事是收益管理的输入：周六演唱会已联动「收益雷达」与「采集中心·活动雷达」。</div></div>' +
+    '</div>' +
+    '<div class="card" style="margin-top:14px"><h4>🤖 晨读机制</h4>' +
+      '<div class="list-row">🕕 每日 06:30 自动抓取 → 07:00 推送到企微/飞书群</div>' +
+      '<div class="list-row">🎯 相关度排序：商圈演唱会/会展 ＞ 本地市场 ＞ 行业动态</div>' +
+      '<div class="list-row">💾 历史记录入知识库 13_资讯归档，可按关键词检索</div>' +
+      '<div class="hint">演示数据仅供展示形态；真实资讯由采集器每日抓取入库。</div></div>';
+};
+
+/* ================= 组织与入口地图 ================= */
+RENDER.org = function(){
+  return head('组织与驾驶舱地图', '原则：决策岗看数据驾驶舱，一线看任务工作台；加角色 = 权限矩阵加一行，不加系统 ｜ 演示数据') +
+    '<div class="grid g4">' +
+      ORG.kpis.map(k => '<div class="card kpi"><div class="lab">' + k.lab + '</div><div class="val">' + k.val + '</div><div class="cmp">' + k.cmp + '</div></div>').join('') +
+    '</div>' +
+    '<div class="card" style="margin-top:14px"><h4>🏛️ 组织 → 入口归属表</h4>' +
+      '<table class="tb"><tr><th>角色 / 部门</th><th>归属入口</th><th>状态</th></tr>' +
+      ORG.rows.map(r => '<tr><td>' + r[0] + '</td><td>' + r[1] + '</td><td><b>' + r[2] + '</b></td></tr>').join('') +
+      '</table>' +
+      '<div class="hint"><b>没有做成 7 个系统：</b>五大集团全是"一个门户、角色决定入口"；本平台同构——7 个入口共用同一底座和口径表。客人视角只有「对客导出包」，员工看得到什么都由《权限矩阵》决定（点左下角可看）。</div></div>';
+};
+
 /* ---------- 启动 ---------- */
 window.addEventListener('DOMContentLoaded', () => {
   renderPortal();
