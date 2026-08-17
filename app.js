@@ -1138,42 +1138,213 @@ function kbPass(i){
   show('kb');
 }
 
-/* ================= 内容中心 ================= */
+/* ================= 内容中心 · 完整版（对齐 8848，全流程演示） ================= */
+let DRAFTS = DRAFT_FULL.map(d => Object.assign({}, d));
+let IMGS = IMG_LIB.slice();
+let VID_DEMO = VIDEO_DEMO.slice();
+let SEED_DONE = false, GEN_RUNNING = false;
+
+/* 虚拟图卡：真实版为 AI 生成图，演示用渐变卡标注"示意图" */
+function imgCard(m){
+  return '<div style="background:linear-gradient(150deg,' + m.c + '22,' + m.c + '66);border:1px solid ' + m.c + '55;border-radius:10px;padding:10px;text-align:center">' +
+    '<div style="font-size:34px">' + m.e + '</div>' +
+    '<div style="font-size:12px;font-weight:700;margin-top:6px">' + m.t + '</div>' +
+    '<div style="margin-top:4px"><span class="tag" style="font-size:10px">' + m.tag + '</span></div>' +
+    '<div style="font-size:10px;color:#98a5bd;margin-top:5px">AI 生成示意图 · 点击下载（演示）</div></div>';
+}
+
 RENDER.content = function(){
-  return head('内容中心 · 全平台推文流水线', '素材进 → AI 生成 → 草稿箱 → <b>人工审核</b> → 复制到各平台发布 ｜ 未经审核的内容一个字不对外发 ｜ 演示数据') +
-    '<div class="grid g2">' +
-      '<div class="card"><h4>📦 素材来源（' + CONTENT.sources.length + '）</h4>' +
-        CONTENT.sources.map(s => '<div class="list-row"><span class="tag ' + s.st + '">' + s.stt + '</span><b>' + s.name + '</b>' +
-          '<span style="font-size:11.5px;color:#98a5bd;margin-left:8px">' + s.d + '</span></div>').join('') + '</div>' +
-      '<div class="card"><h4>🗓️ 每日节奏</h4>' +
-        CONTENT.schedule.map(s => '<div class="list-row"><span class="tag blue">' + s[0] + '</span>' + s[1] + '</div>').join('') +
-        '<div style="margin-top:10px"><button class="btn pri" onclick="contentGen()">✨ 一键生成今日全平台草稿</button>' +
-        '<div id="content-status" style="margin-top:8px"></div></div></div>' +
+  return head('内容中心 · 图文一体流水线', '素材进 → AI 生成 → 草稿箱 → <b>人工审核</b> → 复制到各平台发布 ｜ 未经审核的内容一个字不对外发 ｜ 演示数据') +
+    '<div class="grid g4">' +
+      CONTENT_FULL.sources.map(s => '<div class="card kpi"><div class="lab">' + s.name + '</div>' +
+        '<div class="val" style="font-size:16px;line-height:1.4"><span class="tag ' + s.st + '">' + s.stt + '</span></div>' +
+        '<div class="cmp">' + s.d + '</div></div>').join('') +
     '</div>' +
-    '<div class="card" style="margin-top:14px"><h4>📋 草稿箱（' + CONTENT.drafts.length + ' 篇 · 人审后发布）</h4>' +
-      CONTENT.drafts.map((d, i) =>
-        '<div class="list-row" id="draft-' + i + '"><span class="tag ' + (d.st === '已通过' ? 'green' : 'amber') + '">' + d.st + '</span>' +
-        '<b style="font-size:12.5px">' + d.t + '</b><span class="sp"></span>' +
-        (d.st === '已通过'
-          ? '<button class="btn sm lite" onclick="toast(\'已复制到剪贴板——去对应平台粘贴发布（演示）\')">📋 复制发布</button>'
-          : '<button class="btn sm ok" onclick="contentApprove(' + i + ')">审核通过</button> <button class="btn sm lite" onclick="toast(\'已退回补充素材（演示）\')">退回</button>') +
-        '</div>').join('') +
-      '<div class="hint">平台发布矩阵：公众号（人工点发布）｜ 小红书 / 抖音 / OTA 旅拍（人工粘贴）｜ 朋友圈（企微客户朋友圈，阶段 2）。</div></div>';
+    '<div class="grid g2" style="margin-top:14px">' +
+      '<div class="card"><h4>⚡ 两个一键（先文字，后配图）<span class="more">真实版自动插入推文对应位置</span></h4>' +
+        '<div style="display:flex;gap:10px;flex-wrap:wrap;padding:6px 0">' +
+          '<button class="btn pri" style="font-size:14px;padding:11px 20px" id="btn-gen" onclick="contentGen()">✍️ ① 一键生成今日推文</button>' +
+          '<button class="btn" style="font-size:14px;padding:11px 20px;background:var(--purple);color:#fff" onclick="contentGenImg()">🎨 ② 一键配图</button>' +
+        '</div>' +
+        '<div class="hint" id="gen-status">① 生成 小红书3版+抖音图文3版+公众号1篇+朋友圈3条 → 草稿箱（约1-3分钟）</div>' +
+        '<div class="hint" id="img-status">② 读草稿"配图建议"→ 生成图 → 自动插入推文对应位置（每张约1分钟）</div>' +
+        '<div style="height:8px;background:var(--line);border-radius:4px;overflow:hidden;margin:4px 0 12px"><div id="gen-bar" style="height:100%;width:0;background:var(--green);transition:width .4s"></div></div>' +
+      '</div>' +
+      '<div class="card"><h4>📥 草稿箱（' + DRAFTS.length + ' 篇 · 人审后发布）</h4>' +
+        '<div style="max-height:340px;overflow:auto">' +
+          DRAFTS.map((d, i) =>
+            '<div class="list-row"><span class="tag ' + (d.st === '已通过' ? 'green' : 'amber') + '">' + d.st + '</span>' +
+            '<div><b style="font-size:12.5px">' + d.t + '</b><div style="font-size:10.5px;color:#98a5bd">🕐 ' + d.time + (d.img ? ' · 🖼 已配图' : '') + '</div></div><span class="sp"></span>' +
+            '<button class="btn sm lite" onclick="viewDraft(' + i + ')">查看 / 复制</button> ' +
+            (d.st === '已通过'
+              ? ''
+              : '<button class="btn sm ok" onclick="contentApprove(' + i + ')">通过</button>') +
+            '</div>').join('') +
+        '</div>' +
+        '<div class="hint">点"查看 / 复制"打开成品——复制发布稿直接去平台粘贴，图片在对应位置内嵌。</div></div>' +
+    '</div>' +
+    '<div class="card" style="margin-top:14px"><h4>🎨 AI 配图库（' + IMGS.length + ' 张 · 点卡模拟下载） <span class="more">通道：Codex·image_gen（真实版）</span></h4>' +
+      '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px">' +
+        IMGS.map(imgCard).join('') + '</div>' +
+      '<div class="hint" style="margin-top:10px"><b>用图红线：</b>AI 图只用于海报/氛围/封面；房间与餐食"实拍风"仍须真实拍摄——AI 冒充实拍属虚假宣传。</div></div>' +
+    '<div class="grid g2" style="margin-top:14px">' +
+      '<div class="card"><h4>🚦 各平台发布方式</h4>' +
+        '<table class="tb"><tr><th>平台</th><th>文字</th><th>图片</th></tr>' +
+        '<tr><td><b>公众号</b></td><td>复制成品粘贴（或API进草稿箱）</td><td>复制图片直接粘进编辑器</td></tr>' +
+        '<tr><td><b>小红书 / 抖音</b></td><td>复制成品粘贴</td><td>下载图片 → 上传</td></tr>' +
+        '<tr><td><b>OTA 旅拍 / 朋友圈</b></td><td>复制成品粘贴</td><td>下载 → 上传</td></tr></table>' +
+        '<div class="hint">素材来源与排程见左卡；内容 SOP：只读《核心卖点_对外可用版》生成。</div></div>' +
+      '<div class="card"><h4>⏰ 自动化排程</h4>' +
+        CONTENT_FULL.schedule.map(s => '<div class="list-row"><span class="tag blue">' + s[0] + '</span>' + s[1] + '</div>').join('') +
+        '<div class="hint"><b>红线：</b>竞对文案仅作选题参考禁止照搬；极限词自动过滤（"亚洲最大"→"大型"）；内部经营数据绝不出现在对外内容。</div></div>' +
+    '</div>' +
+    '<div class="card" style="margin-top:14px"><h4>🎬 图集视频 · 一键成片 <span class="more">流程：AI写分镜选图 → 配音 → 字幕 → 运镜合成</span></h4>' +
+      '<div style="display:flex;gap:10px;flex-wrap:wrap;padding:6px 0">' +
+        '<button class="btn pri" style="font-size:14px;padding:11px 20px" onclick="genVideoDemo(\'v\')">📱 生成竖版（抖音/小红书 9:16）</button>' +
+        '<button class="btn" style="font-size:14px;padding:11px 20px;background:var(--amber);color:#fff" onclick="genVideoDemo(\'h\')">🖥 生成横版（视频号/公众号 16:9）</button>' +
+      '</div>' +
+      '<div class="hint" id="vid-line">画面只从实拍图库/AI 图库选真实文件（真实性红线），成片约 20-35 秒，配音"晓晓"</div>' +
+      '<div id="video-box" style="display:flex;gap:12px;flex-wrap:wrap;margin-top:10px">' +
+        VID_DEMO.map((v, i) =>
+          '<div style="width:210px;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#0d1230">' +
+            '<div style="background:linear-gradient(150deg,#1e56d6,#0d1230);color:#fff;padding:26px 10px;text-align:center;position:relative">' +
+              '<div style="font-size:30px">' + (v.orient.indexOf('竖') === 0 ? '📱' : '🖥') + '</div>' +
+              '<div style="font-size:12px;margin-top:6px">' + v.name + '</div>' +
+              '<div style="font-size:10px;opacity:.75;margin-top:3px">' + v.t + ' · ' + v.status + '</div></div>' +
+            '<div style="padding:8px;background:#fff">' +
+              '<button class="btn sm lite" style="width:100%" onclick="vidShots(' + i + ')">🎞 查看分镜（' + v.shots.length + ' 镜）</button>' +
+              '<button class="btn sm pri" style="width:100%;margin-top:5px" onclick="toast(\'⬇ 视频已下载（演示）——真实版可下载 mp4 上传抖音/视频号\',\'ok\')">⬇ 下载</button></div></div>').join('') +
+        (VID_DEMO.length ? '' : '<div class="hint">还没有成片——点上面按钮生成第一支。</div>') + '</div>' +
+      '<div class="hint" style="margin-top:10px"><b>发布：</b>BGM 用平台授权曲库添加（版权红线，不自动配乐）。</div></div>' +
+    '<div class="card" style="margin-top:14px;border:1.5px solid #c9a227"><h4>🎥 AI 实景大片 · Seedance <span class="more">旗舰档：画面真实会动的实景视频</span></h4>' +
+      '<div class="hint">质量铁流程：<b>① 先出文案脚本（真实卖点）→ ② 配好首帧图（实拍锚定）→ ③ 人工审一眼 → ④ 才生成</b>；默认 720p 省钱档，每日上限 6 镜。</div>' +
+      '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px">' +
+        '<button class="btn pri" onclick="seedScriptDemo()">📝 ① AI 写大片脚本（竖版）</button>' +
+        '<button class="btn lite" onclick="seedReviewDemo()">👀 ② 审脚本</button>' +
+        '<button class="btn pri" onclick="seedGenDemo()">🎬 ③ 生成实景大片</button>' +
+      '</div>' +
+      '<div id="seed-st" style="margin-top:10px"><div class="hint">成片只在下方"实景大片成片区"展示（与图集视频分开存放）。</div></div>' +
+      '<div id="seed-gallery" style="display:flex;gap:12px;flex-wrap:wrap;margin-top:10px">' +
+        (SEED_DONE
+          ? '<div style="width:210px;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#0d1230"><div style="background:linear-gradient(150deg,#7c3aed,#0d1230);color:#fff;padding:26px 10px;text-align:center"><div style="font-size:30px">🎬</div><div style="font-size:12px;margin-top:6px">《演唱会夜的安然》· 4 镜 25s</div><div style="font-size:10px;opacity:.75;margin-top:3px">今晨生成 · 720p</div></div><div style="padding:8px;background:#fff"><button class="btn sm lite" style="width:100%" onclick="seedShots()">🎞 查看分镜</button><button class="btn sm pri" style="width:100%;margin-top:5px" onclick="toast(\'⬇ 视频已下载（演示）\',\'ok\')">⬇ 下载</button></div></div>'
+          : '<div class="hint">还没有实景大片——走上面 ①②③ 三步生成第一支。</div>') + '</div></div>' +
+    '<div class="card" style="margin-top:14px"><h4>🔌 对外发布通道 · 接入进度（如实状态）</h4>' +
+      CHANNEL_PIPE.map(c =>
+        '<div class="list-row"><span class="tag ' + c.st + '">' + c.tag + '</span><div><b style="font-size:12.5px">' + c.t + '</b>' +
+        '<div style="font-size:11.5px;color:#5a6577;margin-top:2px">' + c.d + '</div></div>' +
+        (c.btn ? '<span class="sp"></span><button class="btn sm pri" onclick="' + c.act + '()">' + c.btn + '</button>' : '') + '</div>').join('') +
+      '<div class="hint"><b>演示说明：</b>上表为真实接入状态的形态展示；本演示页按钮为模拟操作。</div></div>';
 };
+
+/* —— 交互模拟 —— */
 function contentGen(){
-  const st = $('#content-status');
-  st.innerHTML = '<div class="hint">⏳ AI 读素材库 → 生成全平台草稿（公众号 / 小红书 / 抖音 / OTA / 朋友圈）…</div>';
+  if(GEN_RUNNING){ toast('流水线已在运行中'); return; }
+  GEN_RUNNING = true;
+  const btn = $('#btn-gen'), bar = $('#gen-bar'), st = $('#gen-status');
+  btn.disabled = true; btn.textContent = '⏳ 阶段1/2 · 正在写文案…';
+  st.innerHTML = '<span style="color:#1e56d6">⏳ ① 读《核心卖点_对外可用版》→ 生成 小红书3版 + 抖音图文3版 + 公众号1篇 + 朋友圈3条…</span>';
+  bar.style.width = '40%';
   setTimeout(() => {
-    CONTENT.drafts.unshift({ t:'【今日新稿】演唱会夜 · 散场步行 10 分钟到店（全平台 5 版）', st:'待审核', plat:'全平台' });
-    st.innerHTML = '<div class="hint" style="color:var(--green,#18a058)">✅ 今日草稿已入箱（演示）——请逐篇审核后再发布。</div>';
+    btn.textContent = '⏳ 阶段2/2 · 正在配图…';
+    st.innerHTML = '<span style="color:#6b4fd8">⏳ ② 读草稿配图建议 → 生成图 → 自动插入对应位置…</span>';
+    bar.style.width = '80%';
+    setTimeout(() => {
+      DRAFTS.unshift({ t:'【今日新稿】演唱会夜 · 散场步行 10 分钟到店（全平台 5 版）', st:'待审核', plat:'全平台', time:'刚刚', img:true,
+        body:'## 标题（3选1）\n① 演唱会散场，10 分钟就能躺上床\n② 安然酒店：演唱会夜的"10 分钟回家"方案\n③ 体育中心隔壁的酒店，安睡不挤地铁\n\n## 开头钩子\n昨晚体育中心灯亮到 22:30，散场的人流走到地铁口还要 20 分钟——而住在安然，10 分钟后就躺在零压大床上了。\n\n```text\n演唱会夜住安然：散场步行 10 分钟即到，免费停车场 + 零压大床 + 简早。直订 95 折，加企微送延迟退房。\n```\n\n## 配图建议\n① 演唱会夜大堂实拍（已配）② 零压大床房实拍（已配）\n\n## 审核要点\n卖点全部来自《核心卖点_对外可用版》；"10分钟"已用地图实测。' });
+      IMGS.unshift({ t:'今日新稿 · 演唱会夜主图', c:'#1e56d6', e:'🎤', tag:'新稿' });
+      IMGS.unshift({ t:'今日新稿 · 零压大床实拍', c:'#6b4fd8', e:'🛏️', tag:'新稿' });
+      bar.style.width = '100%';
+      GEN_RUNNING = false;
+      btn.disabled = false; btn.textContent = '✍️ ① 一键生成今日推文';
+      st.innerHTML = '<span style="color:var(--green,#18a058)">✅ 图文全部完成！草稿箱里就是带图成品（演示）——请逐篇审核后再发布。</span>';
+      toast('🎉 图文已生成，草稿箱 +1、图库 +2（演示）', 'ok');
+      show('content');
+    }, 1100);
+  }, 1300);
+}
+function contentGenImg(){
+  toast('⏳ 正在按草稿配图建议生成…（演示）');
+  const st = $('#img-status');
+  st.innerHTML = '⏳ 读草稿"配图建议"→ Codex 真实感生图 → 自动插入推文对应位置（每张约 1 分钟）…';
+  setTimeout(() => {
+    IMGS.unshift({ t:'小红书 · 亲子房实拍补图', c:'#18a058', e:'🧸', tag:'新稿' });
+    IMGS.unshift({ t:'OTA · 首图 A/B 测试版', c:'#0e7490', e:'🖼️', tag:'A/B' });
+    DRAFTS.forEach(d => { if(d.plat === '小红书') d.img = true; });
+    st.innerHTML = '<span style="color:var(--green,#18a058)">✅ 配图完成，图库 +2，对应草稿已标记"已配图"（演示）</span>';
+    toast('✅ 配图完成（演示）', 'ok');
     show('content');
   }, 1300);
 }
+function viewDraft(i){
+  const d = DRAFTS[i];
+  const secs = d.body.split(/\n(?=## )/);
+  openModal('<h3>📄 ' + d.t + '</h3>' +
+    '<div style="margin-bottom:10px">' +
+      '<button class="btn sm pri" onclick="copyDemo(\'发布成品（纯文本，粘贴即发）\')">📋 复制发布成品</button> ' +
+      '<button class="btn sm lite" onclick="copyDemo(\'原稿（含标题/配图建议/审核要点）\')">复制原稿</button> ' +
+      (d.st !== '已通过' ? '<button class="btn sm ok" onclick="contentApprove(' + i + ')">✅ 审核通过</button>' : '<span class="tag green">已通过</span>') +
+      '<span style="font-size:11px;color:#5a6577;margin-left:6px">' + d.plat + ' · ' + d.time + (d.img ? ' · 🖼 已配图' : '') + '</span></div>' +
+    secs.map((s, j) => '<div class="decide"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px">' +
+      '<b style="font-size:12.5px">' + (s.split('\n')[0] || '').replace(/^#+\s*/, '').slice(0, 46) + '</b>' +
+      '<button class="btn sm pri" onclick="copyDemo(\'此版发布稿已复制（演示）\')">复制此版发布稿</button></div>' +
+      '<pre style="white-space:pre-wrap;font-size:12px;line-height:1.75;margin-top:6px;font-family:inherit">' + s + '</pre></div>').join(''));
+}
+function copyDemo(msg){ toast('📋 ' + msg, 'ok'); }
 function contentApprove(i){
-  CONTENT.drafts[i].st = '已通过';
+  DRAFTS[i].st = '已通过';
   toast('✅ 已审核通过——可复制去对应平台发布（保持人在回路）', 'ok');
   show('content');
 }
+function genVideoDemo(orient){
+  const line = $('#vid-line');
+  line.innerHTML = '⏳ AI 写分镜 → 选图（只从实拍/AI 图库选真实文件）→ 配音"晓晓" → 字幕 → 运镜合成…';
+  setTimeout(() => {
+    VID_DEMO.unshift({ orient: orient === 'v' ? '竖版 9:16' : '横版 16:9',
+      name: orient === 'v' ? '演唱会夜·10分钟到家（30s）' : '安然的一天（35s）',
+      t: '刚刚', status: '待审核',
+      shots: SEED_DEMO.script.shots.map(s => ({ img: s.image.replace('实拍图库/原图/','🖼 '), motion: s.motion, sub: s.sub })) });
+    line.innerHTML = '<span style="color:var(--green,#18a058)">✅ 成片已生成（演示）——审核后下载上传抖音/视频号。</span>';
+    toast('🎬 成片已生成（演示）', 'ok');
+    show('content');
+  }, 1500);
+}
+function vidShots(i){
+  const v = VID_DEMO[i];
+  openModal('<h3>🎞 ' + v.name + ' · 分镜脚本</h3>' +
+    v.shots.map((s, j) => '<div class="list-row"><span class="tag blue">镜' + (j + 1) + '</span>' +
+      '<div><b>' + s.img + '</b><div style="font-size:11.5px;color:#5a6577">运镜：' + s.motion + ' ｜ 字幕：' + s.sub + '</div></div></div>').join('') +
+    '<div class="hint" style="margin-top:8px">真实版：配音 + 字幕 + 运镜合成后输出 mp4，BGM 用平台授权曲库。</div>');
+}
+function seedScriptDemo(){
+  $('#seed-st').innerHTML = '<div class="hint">⏳ ① AI 正在按真实卖点写脚本并从实拍库选首帧图…（约 1-2 分钟）</div>';
+  setTimeout(() => {
+    $('#seed-st').innerHTML = '<div class="hint"><span style="color:var(--green,#18a058)">✅ 脚本已生成：《演唱会夜的安然》竖版 · 4 镜</span> → 点「② 审脚本」过目，没问题再点③生成。</div>';
+    toast('脚本已就绪，请审核', 'ok');
+  }, 1400);
+}
+function seedReviewDemo(){
+  openModal('<h3>👀 大片脚本审核 · 《' + SEED_DEMO.script.title + '》(' + SEED_DEMO.script.orient + ')</h3>' +
+    SEED_DEMO.script.shots.map((sh, i) => '<div class="list-row"><b>镜' + (i + 1) + '</b> ｜ 首帧：' + sh.image + ' ｜ 运镜：' + sh.motion + ' ｜ 字幕：' + sh.sub + '</div>').join('') +
+    '<div class="hint" style="margin-top:8px">确认三点：①字幕是真实卖点没吹牛 ②首帧图对得上文案 ③运镜没有要求"变出"画面里没有的东西。没问题就关掉本窗，点「③ 生成实景大片」。</div>');
+}
+function seedGenDemo(){
+  $('#seed-st').innerHTML = '<div class="hint">⏳ ③ Seedance 逐镜生成中…（每镜约 1-3 分钟，默认 720p）</div>';
+  setTimeout(() => {
+    SEED_DONE = true;
+    $('#seed-st').innerHTML = '<div class="hint"><span style="color:var(--green,#18a058)">✅ 实景大片完成！已进上方"实景大片成片区"。</span></div>';
+    toast('🎬 实景大片生成完成（演示）', 'ok');
+    show('content');
+  }, 1600);
+}
+function seedShots(){
+  openModal('<h3>🎬 《演唱会夜的安然》· 4 镜</h3>' +
+    SEED_DEMO.script.shots.map((s, j) => '<div class="list-row"><span class="tag blue">镜' + (j + 1) + '</span>' +
+      '<div><b>' + s.image + '</b><div style="font-size:11.5px;color:#5a6577">运镜：' + s.motion + ' ｜ 字幕：' + s.sub + '</div></div></div>').join('') +
+    '<div class="hint" style="margin-top:8px">真实版：首帧为实拍原图锚定，Seedance 生成会动的实景视频。</div>');
+}
+function wxPushDemo(){ toast('📮 推送执行（演示）——真实版需公众号认证后开通草稿箱接口', 'ok'); }
+function dedaoDemo(){ toast('🔄 竞对同步已开始（演示）——真实版每日 07:00 自动同步', 'ok'); }
+function fsDemo(){ toast('📊 经营晨报已推送飞书群（演示）——真实版每日 08:00 自动推送', 'ok'); }
 
 /* ================= 行业资讯 ================= */
 RENDER.news = function(){
